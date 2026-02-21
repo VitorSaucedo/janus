@@ -1,0 +1,64 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: janus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: authdb
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d authdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - janus-network
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: janus-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - janus-network
+
+  app:
+    container_name: janus-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/authdb
+      SPRING_DATASOURCE_USERNAME: auth
+      SPRING_DATASOURCE_PASSWORD: auth123
+      JANUS_JWT_SECRET: ${JANUS_JWT_SECRET:-janus-dev-secret-key-change-in-production-min-256bits}
+      SPRING_MAIL_HOST: mailhog
+      SPRING_MAIL_PORT: 1025
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    networks:
+      - janus-network
+    profiles:
+      - fullstack
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  janus-network:
+    driver: bridge

@@ -1,0 +1,29 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Variáveis de ambiente e secrets
+.env
+.env.local
+.env.*.local
+
+# Spring Boot
+spring-shell.log
+
+# Docker volumes locais
+postgres-data/
