@@ -2,6 +2,7 @@ package com.vitorsaucedo.janus.domain.user;
 
 import com.vitorsaucedo.janus.audit.AuditService;
 import com.vitorsaucedo.janus.audit.SecurityEvent.SecurityEventType;
+import com.vitorsaucedo.janus.exception.PasswordRecentlyUsedException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -74,9 +75,7 @@ public class UserService {
                 .anyMatch(ph -> passwordEncoder.matches(rawPassword, ph.getPasswordHash()));
 
         if (isReused) {
-            throw new IllegalArgumentException(
-                    "Password was used recently. Please choose a different password."
-            );
+            throw new PasswordRecentlyUsedException();
         }
 
         var history = new PasswordHistory();

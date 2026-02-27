@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.web.util.matcher.IpAddressMatcher;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,11 +18,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
-    private final AuditService auditService;
 
     public AuthController(AuthService authService, AuditService auditService) {
         this.authService = authService;
-        this.auditService = auditService;
     }
 
     @PostMapping("/register")
@@ -34,15 +33,9 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest
     ) {
-        try {
-            var response = authService.login(request);
-            auditService.log(request.email(), SecurityEventType.LOGIN_SUCCESS, httpRequest);
-            return ResponseEntity.ok(response);
-        } catch (Exception ex) {
-            auditService.log(request.email(), SecurityEventType.LOGIN_FAILURE, httpRequest);
-            throw ex;
-        }
+        return ResponseEntity.ok(authService.login(request, httpRequest.getRemoteAddr()));
     }
+
 
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request) {
@@ -61,7 +54,6 @@ public class AuthController {
     @PostMapping("/forgot-password")
     public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         authService.forgotPassword(request.email());
-        auditService.log(request.email(), SecurityEventType.PASSWORD_RESET_REQUESTED);
         return ResponseEntity.accepted().build();
     }
 

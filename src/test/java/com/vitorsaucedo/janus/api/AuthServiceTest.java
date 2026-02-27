@@ -3,13 +3,15 @@ package com.vitorsaucedo.janus.api;
 import com.vitorsaucedo.janus.api.auth.AuthService;
 import com.vitorsaucedo.janus.api.auth.dto.LoginRequest;
 import com.vitorsaucedo.janus.api.auth.dto.RegisterRequest;
-import com.vitorsaucedo.janus.domain.token.PasswordResetService;
+import com.vitorsaucedo.janus.audit.AuditService;
+import com.vitorsaucedo.janus.audit.SecurityEvent;
 import com.vitorsaucedo.janus.domain.token.RefreshToken;
 import com.vitorsaucedo.janus.domain.token.RefreshTokenService;
 import com.vitorsaucedo.janus.domain.user.User;
 import com.vitorsaucedo.janus.domain.user.UserRepository;
 import com.vitorsaucedo.janus.domain.user.UserRole;
 import com.vitorsaucedo.janus.domain.user.UserService;
+import com.vitorsaucedo.janus.exception.EmailAlreadyInUseException;
 import com.vitorsaucedo.janus.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +41,7 @@ class AuthServiceTest {
     @Mock private AuthenticationManager authenticationManager;
     @Mock private RefreshTokenService refreshTokenService;
     @Mock private UserService userService;
-    @Mock private PasswordResetService passwordResetService;
+    @Mock private AuditService auditService;
 
     @InjectMocks
     private AuthService authService;
@@ -86,7 +88,7 @@ class AuthServiceTest {
         when(userRepository.existsByEmail(request.email())).thenReturn(true);
 
         assertThatThrownBy(() -> authService.register(request))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(EmailAlreadyInUseException.class)
                 .hasMessage("Email already in use");
 
         verify(userRepository, never()).save(any());
@@ -100,10 +102,11 @@ class AuthServiceTest {
         when(jwtService.generateAccessToken(user)).thenReturn("access-token");
         when(refreshTokenService.create(user)).thenReturn(refreshToken);
 
-        var response = authService.login(request);
+        var response = authService.login(request, "127.0.0.1");
 
         assertThat(response.accessToken()).isEqualTo("access-token");
         verify(userService).handleLoginSuccess(user);
+        verify(auditService).log(request.email(), SecurityEvent.SecurityEventType.LOGIN_SUCCESS, "127.0.0.1");
     }
 
     @Test
@@ -113,9 +116,10 @@ class AuthServiceTest {
         doThrow(new BadCredentialsException("Bad credentials"))
                 .when(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
 
-        assertThatThrownBy(() -> authService.login(request))
+        assertThatThrownBy(() -> authService.login(request, "127.0.0.1"))
                 .isInstanceOf(BadCredentialsException.class);
 
         verify(userService).handleLoginFailure(request.email());
+        verify(auditService).log(request.email(), SecurityEvent.SecurityEventType.LOGIN_FAILURE, "127.0.0.1");
     }
 }

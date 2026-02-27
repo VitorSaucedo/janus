@@ -1,6 +1,7 @@
 package com.vitorsaucedo.janus.domain.token;
 
 import com.vitorsaucedo.janus.domain.user.User;
+import com.vitorsaucedo.janus.exception.InvalidTokenException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,10 +36,10 @@ public class RefreshTokenService {
     @Transactional
     public RefreshToken rotate(String token) {
         var existing = refreshTokenRepository.findByToken(token)
-                .orElseThrow(() -> new IllegalArgumentException("Refresh token not found"));
+                .orElseThrow(InvalidTokenException::new);
 
         if (!existing.isValid()) {
-            throw new IllegalArgumentException("Refresh token is expired or revoked");
+            throw new InvalidTokenException();
         }
 
         existing.setRevoked(true);

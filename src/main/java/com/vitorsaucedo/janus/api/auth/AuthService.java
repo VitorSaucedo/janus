@@ -4,12 +4,16 @@ import com.vitorsaucedo.janus.api.auth.dto.AuthResponse;
 import com.vitorsaucedo.janus.api.auth.dto.LoginRequest;
 import com.vitorsaucedo.janus.api.auth.dto.RefreshRequest;
 import com.vitorsaucedo.janus.api.auth.dto.RegisterRequest;
+import com.vitorsaucedo.janus.audit.AuditService;
+import com.vitorsaucedo.janus.audit.SecurityEvent;
 import com.vitorsaucedo.janus.domain.token.PasswordResetService;
 import com.vitorsaucedo.janus.domain.token.RefreshTokenService;
 import com.vitorsaucedo.janus.domain.user.User;
 import com.vitorsaucedo.janus.domain.user.UserRepository;
 import com.vitorsaucedo.janus.domain.user.UserRole;
 import com.vitorsaucedo.janus.domain.user.UserService;
+import com.vitorsaucedo.janus.exception.EmailAlreadyInUseException;
+import com.vitorsaucedo.janus.exception.UserNotFoundException;
 import com.vitorsaucedo.janus.security.JwtService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -27,6 +31,7 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final UserService userService;
     private final PasswordResetService passwordResetService;
+    private final AuditService auditService;
 
     @Value("${janus.jwt.access-token-expiration}")
     private long accessTokenExpiration;
@@ -38,7 +43,7 @@ public class AuthService {
             AuthenticationManager authenticationManager,
             RefreshTokenService refreshTokenService,
             UserService userService,
-            PasswordResetService passwordResetService
+            PasswordResetService passwordResetService, AuditService auditService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -47,11 +52,12 @@ public class AuthService {
         this.refreshTokenService = refreshTokenService;
         this.userService = userService;
         this.passwordResetService = passwordResetService;
+        this.auditService = auditService;
     }
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("Email already in use");
+            throw new EmailAlreadyInUseException();
         }
 
         var user = new User();
@@ -67,20 +73,22 @@ public class AuthService {
         return buildAuthResponse(user);
     }
 
-    public AuthResponse login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request, String ipAddress) {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.email(), request.password())
             );
         } catch (Exception ex) {
             userService.handleLoginFailure(request.email());
+            auditService.log(request.email(), SecurityEvent.SecurityEventType.LOGIN_FAILURE, ipAddress);
             throw ex;
         }
 
         var user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(UserNotFoundException::new);
 
         userService.handleLoginSuccess(user);
+        auditService.log(request.email(), SecurityEvent.SecurityEventType.LOGIN_SUCCESS, ipAddress);
 
         return buildAuthResponse(user);
     }
@@ -97,6 +105,7 @@ public class AuthService {
 
     public void forgotPassword(String email) {
         passwordResetService.requestReset(email);
+        auditService.log(email, SecurityEvent.SecurityEventType.PASSWORD_RESET_REQUESTED);
     }
 
     public void resetPassword(String token, String newPassword) {

@@ -14,17 +14,22 @@ public class AuditService {
     }
 
     public void log(String email, SecurityEventType type, HttpServletRequest request) {
-        var event = new SecurityEvent();
-        event.setEmail(email);
-        event.setType(type);
-        event.setIpAddress(extractIp(request));
-        securityEventRepository.save(event);
+        log(email, type, extractIp(request));
+    }
+
+    public void log(String email, SecurityEventType type, String ipAddress) {
+        save(email, type, ipAddress);
     }
 
     public void log(String email, SecurityEventType type) {
+        save(email, type, null);
+    }
+
+    private void save(String email, SecurityEventType type, String ipAddress) {
         var event = new SecurityEvent();
         event.setEmail(email);
         event.setType(type);
+        event.setIpAddress(ipAddress);
         securityEventRepository.save(event);
     }
 
