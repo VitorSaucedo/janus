@@ -3,6 +3,7 @@ package com.vitorsaucedo.janus.domain.token;
 import com.vitorsaucedo.janus.domain.email.EmailService;
 import com.vitorsaucedo.janus.domain.user.UserRepository;
 import com.vitorsaucedo.janus.domain.user.UserService;
+import com.vitorsaucedo.janus.exception.InvalidTokenException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -53,12 +54,12 @@ public class PasswordResetService {
     }
 
     @Transactional
-    public void resetPassword(String token, String newPassword) {
+    public String resetPassword(String token, String newPassword) {
         var resetToken = passwordResetTokenRepository.findByToken(token)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired token"));
+                .orElseThrow(InvalidTokenException::new);
 
         if (!resetToken.isValid()) {
-            throw new IllegalArgumentException("Invalid or expired token");
+            throw new InvalidTokenException();
         }
 
         var user = resetToken.getUser();
@@ -70,5 +71,7 @@ public class PasswordResetService {
 
         resetToken.setUsed(true);
         passwordResetTokenRepository.save(resetToken);
+
+        return user.getEmail();
     }
 }
