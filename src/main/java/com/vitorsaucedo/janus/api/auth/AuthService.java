@@ -20,6 +20,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
@@ -43,7 +44,8 @@ public class AuthService {
             AuthenticationManager authenticationManager,
             RefreshTokenService refreshTokenService,
             UserService userService,
-            PasswordResetService passwordResetService, AuditService auditService
+            PasswordResetService passwordResetService,
+            AuditService auditService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -55,6 +57,7 @@ public class AuthService {
         this.auditService = auditService;
     }
 
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
             throw new EmailAlreadyInUseException();
@@ -100,7 +103,11 @@ public class AuthService {
     }
 
     public void logout(String refreshToken) {
+        var token = refreshTokenService.findByToken(refreshToken);
         refreshTokenService.revoke(refreshToken);
+        token.ifPresent(rt ->
+                auditService.log(rt.getUser().getEmail(), SecurityEvent.SecurityEventType.LOGOUT)
+        );
     }
 
     public void forgotPassword(String email) {
@@ -109,7 +116,8 @@ public class AuthService {
     }
 
     public void resetPassword(String token, String newPassword) {
-        passwordResetService.resetPassword(token, newPassword);
+        String email = passwordResetService.resetPassword(token, newPassword);
+        auditService.log(email, SecurityEvent.SecurityEventType.PASSWORD_RESET_SUCCESS);
     }
 
     private AuthResponse buildAuthResponse(User user) {
