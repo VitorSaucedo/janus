@@ -12,6 +12,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -38,9 +39,6 @@ public class User implements UserDetails {
 
     @Column(nullable = false)
     private boolean enabled = true;
-
-    @Column(nullable = false)
-    private boolean accountNonLocked = true;
 
     @Column(nullable = false)
     private int failedLoginAttempts = 0;
@@ -77,9 +75,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        if (lockedUntil != null && LocalDateTime.now().isBefore(lockedUntil)) {
-            return false;
-        }
-        return accountNonLocked;
+        return lockedUntil == null || LocalDateTime.now().isAfter(lockedUntil);
     }
 }
