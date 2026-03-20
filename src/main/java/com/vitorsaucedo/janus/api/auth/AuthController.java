@@ -19,7 +19,7 @@ public class AuthController {
 
     private final AuthService authService;
 
-    public AuthController(AuthService authService, AuditService auditService) {
+    public AuthController(AuthService authService) {
         this.authService = authService;
     }
 
@@ -35,7 +35,6 @@ public class AuthController {
     ) {
         return ResponseEntity.ok(authService.login(request, httpRequest.getRemoteAddr()));
     }
-
 
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request) {
