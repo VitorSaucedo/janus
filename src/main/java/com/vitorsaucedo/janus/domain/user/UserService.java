@@ -45,7 +45,6 @@ public class UserService {
         if (user.getFailedLoginAttempts() > 0 || user.getLockedUntil() != null) {
             user.setFailedLoginAttempts(0);
             user.setLockedUntil(null);
-            userRepository.save(user);
         }
     }
 
