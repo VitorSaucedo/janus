@@ -23,9 +23,6 @@ public class JwtService {
     @Value("${janus.jwt.access-token-expiration}")
     private long accessTokenExpiration;
 
-    @Value("${janus.jwt.refresh-token-expiration}")
-    private long refreshTokenExpiration;
-
     public String generateAccessToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole().name());
@@ -75,10 +72,6 @@ public class JwtService {
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-    }
-
-    public String generateRefreshToken(User user) {
-        return buildToken(new HashMap<>(), user.getEmail(), refreshTokenExpiration);
     }
 }
 
